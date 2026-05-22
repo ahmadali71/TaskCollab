@@ -1,0 +1,30 @@
+// Fade in
+<div className="animate-fade-in">Content</div>
+
+// Float animation
+<div className="animate-float">Floating element</div>
+
+// With delay
+<div className="animate-fade-in-up animation-delay-300">Delayed animation</div>
+
+// Hover effects
+<div className="hover-lift">Lifts on hover</div>
+<div className="hover-scale">Scales on hover</div>
+
+// Spinner
+<div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+
+// Pulse
+<div className="animate-pulse">Pulsing content</div>
+
+// Shimmer loading
+<div className="animate-shimmer h-4 w-full rounded" />
+
+// Modal
+<div className="animate-modal-enter">Modal content</div>
+
+// Page transition
+<div className="animate-page-enter">Page content</div>
+
+// Glow effect
+<div className="animate-glow rounded-xl p-4">Glowing card</div>
