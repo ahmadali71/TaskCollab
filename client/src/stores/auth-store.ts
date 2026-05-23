@@ -16,6 +16,9 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   
+  // Actions
+  setUser: (user: User | null) => void;
+  setTokens: (token: string, refreshToken: string) => void;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -27,13 +30,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   refreshToken: null,
-  isAuthenticated: false,  // MUST start as false
-  isLoading: true,          // MUST start as true
+  isAuthenticated: false,
+  isLoading: false,
   error: null,
 
+  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  
+  setTokens: (token, refreshToken) => set({ token, refreshToken }),
+
   checkAuth: () => {
-    console.log('🔍 Checking authentication...');
-    
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('auth_user');
     
@@ -47,27 +52,14 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           isLoading: false
         });
-        console.log('✅ User is authenticated');
       } catch (err) {
-        console.error('❌ Error parsing user:', err);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('auth_user');
-        set({ 
-          isAuthenticated: false, 
-          isLoading: false,
-          user: null,
-          token: null
-        });
+        set({ isAuthenticated: false, isLoading: false });
       }
     } else {
-      console.log('❌ No valid auth data found');
-      set({ 
-        isAuthenticated: false, 
-        isLoading: false,
-        user: null,
-        token: null
-      });
+      set({ isAuthenticated: false, isLoading: false });
     }
   },
 
@@ -75,7 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('https://taskcollab-production-e08c.up.railway.app/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -85,9 +77,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       if (data.success) {
         const newUser = {
-          id: String(data.user?.id || Date.now()),
-          name: String(data.user?.name || email.split('@')[0] || 'User'),
-          email: String(data.user?.email || email),
+          id: data.user?.id || Date.now().toString(),
+          name: data.user?.name || email.split('@')[0] || 'User',
+          email: data.user?.email || email,
         };
         
         localStorage.setItem('token', data.token);
@@ -120,7 +112,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('https://taskcollab-production-e08c.up.railway.app/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
@@ -128,7 +120,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       const data = await response.json();
       
-      if (response.status === 201 && data.success) {
+      if (data.success) {
         set({ isLoading: false });
         return true;
       }
@@ -147,7 +139,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('auth_user');
-    
     set({ 
       user: null, 
       token: null, 
