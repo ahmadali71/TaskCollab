@@ -16,15 +16,20 @@ connectDB();
 // Initialize express
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
-// CORS - Allow client to connect
+// CORS - Allow client to connect (MUST come first)
 app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000', 'https://task-collab-app.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Security middleware (after CORS)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 // Body parsing middleware
@@ -43,6 +48,14 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
 
+// Debug: Log all registered routes
+console.log('Registered routes:');
+app._router.stack.forEach(r => {
+  if (r.route && r.route.path) {
+    console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+  }
+});
+
 // Health check for Vercel frontend (with /api prefix)
 app.get('/api/health', (req, res) => {
   res.json({
@@ -50,6 +63,11 @@ app.get('/api/health', (req, res) => {
     message: 'Server is healthy',
     timestamp: new Date().toISOString(),
   });
+});
+
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ success: true, message: 'API is working!' });
 });
 
 // Health check (without /api prefix)

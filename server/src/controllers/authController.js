@@ -22,6 +22,8 @@ const generateRefreshToken = () => {
 // @route   POST /api/auth/register
 // @access  Public
 export const register = async (req, res) => {
+  console.log('📝 Register endpoint hit!', req.body);
+  
   const { name, email, password } = req.body;
 
   // Validate input
@@ -32,61 +34,73 @@ export const register = async (req, res) => {
     });
   }
 
-  // Check if user exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return res.status(400).json({
+  try {
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email',
+      });
+    }
+
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password,
+    });
+
+    // Generate tokens
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken();
+
+    // Save session
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    await Session.create({
+      user: user._id,
+      token,
+      refreshToken,
+      expiresAt,
+      deviceInfo: {
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip,
+      },
+    });
+
+    // Log activity
+    await logActivity(
+      user._id,
+      'login',
+      'New account registered',
+      'Account',
+      '/profile',
+      'Successfully registered'
+    );
+
+    console.log('✅ User registered successfully:', email);
+
+    res.status(201).json({
+      success: true,
+      token,
+      refreshToken,
+      user: user.getPublicProfile(),
+    });
+  } catch (error) {
+    console.error('❌ Registration error:', error);
+    res.status(500).json({
       success: false,
-      message: 'User already exists with this email',
+      message: error.message || 'Server error during registration',
     });
   }
-
-  // Create user
-  const user = await User.create({
-    name,
-    email,
-    password,
-  });
-
-  // Generate tokens
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken();
-
-  // Save session
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-  await Session.create({
-    user: user._id,
-    token,
-    refreshToken,
-    expiresAt,
-    deviceInfo: {
-      userAgent: req.get('User-Agent'),
-      ipAddress: req.ip,
-    },
-  });
-
-  // Log activity
-  await logActivity(
-    user._id,
-    'login',
-    'New account registered',
-    'Account',
-    '/profile',
-    'Successfully registered'
-  );
-
-  res.status(201).json({
-    success: true,
-    token,
-    refreshToken,
-    user: user.getPublicProfile(),
-  });
 };
 
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
 export const login = async (req, res) => {
+  console.log('🔐 Login endpoint hit!', req.body.email);
+  
   const { email, password } = req.body;
 
   // Validate input
@@ -97,62 +111,72 @@ export const login = async (req, res) => {
     });
   }
 
-  // Find user with password
-  const user = await User.findOne({ email }).select('+password');
-  if (!user) {
-    return res.status(401).json({
+  try {
+    // Find user with password
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Compare password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    user.loginCount += 1;
+    await user.save();
+
+    // Generate tokens
+    const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken();
+
+    // Save session
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await Session.create({
+      user: user._id,
+      token,
+      refreshToken,
+      expiresAt,
+      deviceInfo: {
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip,
+      },
+    });
+
+    // Log activity
+    await logActivity(
+      user._id,
+      'login',
+      'Logged in',
+      'Account',
+      '/dashboard',
+      'Successfully logged in'
+    );
+
+    console.log('✅ User logged in successfully:', email);
+
+    res.json({
+      success: true,
+      token,
+      refreshToken,
+      user: user.getPublicProfile(),
+    });
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Invalid credentials',
+      message: error.message || 'Server error during login',
     });
   }
-
-  // Compare password
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid credentials',
-    });
-  }
-
-  // Update last login
-  user.lastLogin = new Date();
-  user.loginCount += 1;
-  await user.save();
-
-  // Generate tokens
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken();
-
-  // Save session
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  await Session.create({
-    user: user._id,
-    token,
-    refreshToken,
-    expiresAt,
-    deviceInfo: {
-      userAgent: req.get('User-Agent'),
-      ipAddress: req.ip,
-    },
-  });
-
-  // Log activity
-  await logActivity(
-    user._id,
-    'login',
-    'Logged in',
-    'Account',
-    '/dashboard',
-    'Successfully logged in'
-  );
-
-  res.json({
-    success: true,
-    token,
-    refreshToken,
-    user: user.getPublicProfile(),
-  });
 };
 
 // @desc    Logout user
