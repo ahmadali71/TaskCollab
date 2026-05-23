@@ -21,7 +21,7 @@ app.use(helmet());
 
 // CORS - Allow client to connect
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://task-collab-app.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -43,7 +43,16 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health check
+// Health check for Vercel frontend (with /api prefix)
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Health check (without /api prefix)
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -72,5 +81,5 @@ app.use((err, req, res, next) => {
 // Start server
 app.listen(config.port, () => {
   console.log(`Server running in ${config.nodeEnv} mode on port ${config.port}`);
-  console.log(`CORS enabled for origins: http://localhost:5173, http://localhost:3000`);
+  console.log(`CORS enabled for origins: http://localhost:5173, http://localhost:3000, https://task-collab-app.vercel.app`);
 });
