@@ -56,7 +56,7 @@ app._router.stack.forEach(r => {
   }
 });
 
-// Health check for Vercel frontend (with /api prefix)
+// Health check for Vercel frontend
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,

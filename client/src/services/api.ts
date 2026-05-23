@@ -1,5 +1,5 @@
 // src/services/api.ts
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://taskcollab-production-e08c.up.railway.app/api';
 
 const api = {
   async post(endpoint: string, data?: any, options?: { signal?: AbortSignal }) {

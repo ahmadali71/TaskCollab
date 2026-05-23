@@ -56,7 +56,7 @@ export const register = async (req, res) => {
     const refreshToken = generateRefreshToken();
 
     // Save session
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await Session.create({
       user: user._id,
       token,
@@ -67,16 +67,6 @@ export const register = async (req, res) => {
         ipAddress: req.ip,
       },
     });
-
-    // Log activity
-    await logActivity(
-      user._id,
-      'login',
-      'New account registered',
-      'Account',
-      '/profile',
-      'Successfully registered'
-    );
 
     console.log('✅ User registered successfully:', email);
 
@@ -103,7 +93,6 @@ export const login = async (req, res) => {
   
   const { email, password } = req.body;
 
-  // Validate input
   if (!email || !password) {
     return res.status(400).json({
       success: false,
@@ -112,7 +101,6 @@ export const login = async (req, res) => {
   }
 
   try {
-    // Find user with password
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
@@ -121,7 +109,6 @@ export const login = async (req, res) => {
       });
     }
 
-    // Compare password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -130,16 +117,13 @@ export const login = async (req, res) => {
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     user.loginCount += 1;
     await user.save();
 
-    // Generate tokens
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken();
 
-    // Save session
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await Session.create({
       user: user._id,
@@ -151,16 +135,6 @@ export const login = async (req, res) => {
         ipAddress: req.ip,
       },
     });
-
-    // Log activity
-    await logActivity(
-      user._id,
-      'login',
-      'Logged in',
-      'Account',
-      '/dashboard',
-      'Successfully logged in'
-    );
 
     console.log('✅ User logged in successfully:', email);
 
@@ -184,26 +158,14 @@ export const login = async (req, res) => {
 // @access  Private
 export const logout = async (req, res) => {
   try {
-    // Get token from authorization header
     const token = req.headers.authorization?.split(' ')[1];
     
-    // Deactivate the session if token exists
     if (token) {
       await Session.findOneAndUpdate(
         { token, isActive: true },
         { isActive: false }
       );
     }
-
-    // Log activity
-    await logActivity(
-      req.user._id,
-      'logout',
-      'Logged out',
-      'Account',
-      '/',
-      'Successfully logged out'
-    );
 
     res.json({
       success: true,
@@ -246,16 +208,6 @@ export const updateProfile = async (req, res) => {
     runValidators: true,
   });
 
-  // Log activity
-  await logActivity(
-    req.user._id,
-    'profile_updated',
-    'Updated profile',
-    'Profile',
-    '/profile',
-    'Profile information updated'
-  );
-
   res.json({
     success: true,
     user: user.getPublicProfile(),
@@ -275,7 +227,6 @@ export const refreshToken = async (req, res) => {
     });
   }
 
-  // Find session with refresh token
   const session = await Session.findOne({
     refreshToken,
     isActive: true,
@@ -289,11 +240,9 @@ export const refreshToken = async (req, res) => {
     });
   }
 
-  // Generate new tokens
   const newToken = generateToken(session.user);
   const newRefreshToken = generateRefreshToken();
 
-  // Update session
   session.token = newToken;
   session.refreshToken = newRefreshToken;
   session.lastAccessed = new Date();
